@@ -1,0 +1,27 @@
+{
+  "name": "react-native-workerbee",
+  "version": "0.1.0",
+  "description": "Web Worker-like functionality for React Native using JSI",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "author": "Austin K Smith",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/react-native-workerbee.git"
+  },
+  "keywords": [
+    "react-native",
+    "android",
+    "worker",
+    "jsi"
+  ],
+  "peerDependencies": {
+    "react": "*",
+    "react-native": ">=0.65.0"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.0",
+    "@types/react-native": "^0.65.0"
+  }
+}
