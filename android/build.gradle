@@ -11,23 +11,49 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+// Define fbjniHeadersDir as a project-wide property
+project.ext.fbjniHeadersDir = new File(project.buildDir, "generated/source/fbjni-headers").absolutePath
+
 android {
     namespace "com.austinksmith.reactnativeworkerbee"
     compileSdkVersion rootProject.ext.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 31
 
     defaultConfig {
-        minSdkVersion rootProject.ext.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 21
+        minSdkVersion rootProject.ext.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 23
         targetSdkVersion rootProject.ext.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 31
+
+        externalNativeBuild {
+            cmake {
+                arguments "-DFBJNI_HEADERS_DIR=${project.ext.fbjniHeadersDir}",
+                          "-DNODE_MODULES_DIR=${rootProject.projectDir}/../node_modules"
+                          "-DANDROID_STL=c++_shared"
+                cppFlags "-std=c++17"
+            }
+        }
+
+        ndk {
+            stl "c++_shared"
+        }
     }
 
     externalNativeBuild {
         cmake {
-            path file("${project.rootDir}/node_modules/react-native-workerbee/android/src/main/CMakeLists.txt")
+            path file("${project.rootDir}/../node_modules/react-native-workerbee/android/CMakeLists.txt")
+            version "3.22.1"
         }
     }
 
     buildFeatures {
         prefab true
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+            java {
+                srcDirs = ['src/main/java', 'src/main/java-sdk23']
+            }
+        }
     }
 }
 
@@ -37,54 +63,66 @@ repositories {
 }
 
 dependencies {
-     implementation("com.facebook.react:react-native:+") {
+    implementation("com.facebook.react:react-native:+") {
         exclude group:'com.facebook.fbjni'
     }
     implementation 'com.facebook.fbjni:fbjni:0.2.2'
 }
 
-// Configuration for extracting fbjni headers and JNI files for workerbee
 configurations {
     workerbeeHeaders
-    workerbeeJNI
 }
 
 dependencies {
-    workerbeeHeaders("com.facebook.fbjni:fbjni:0.2.2:headers")
+    workerbeeHeaders("com.facebook.fbjni:fbjni:0.2.2")
 }
 
-// Task to extract fbjni header files
-task extractWorkerBeeHeaders {
+task createFbjniDir {
     doLast {
-        configurations.workerbeeHeaders.files.each {
-            def file = it.absoluteFile
-            copy {
-                from zipTree(file)
-                into "$buildDir/workerbee/headers/$file.name"
-                include "**/*.h"
-            }
-        }
+        file(project.ext.fbjniHeadersDir).mkdirs()
     }
 }
 
-// Task to extract JNI files for workerbee
-task extractWorkerBeeJNI {
-    doLast {
-        configurations.workerbeeJNI.files.each {
-            def file = it.absoluteFile
-            copy {
-                from zipTree(file)
-                into "$buildDir/workerbee/jni/$file.name"
-                include "jni/**/*"
-            }
-        }
+task extractWorkerBeeHeaders(type: Copy) {
+    from {
+        configurations.workerbeeHeaders.collect { zipTree(it) }
     }
+    into project.ext.fbjniHeadersDir
+    include "**/*.h"
+    include "**/*.hpp"
+    includeEmptyDirs = false
 }
 
-// Ensure extraction tasks run before the native build for workerbee
+extractWorkerBeeHeaders.dependsOn(createFbjniDir)
+
+println "fbjniHeadersDir is set to: ${project.ext.fbjniHeadersDir}"
+println "CMake arguments: ${android.defaultConfig.externalNativeBuild.cmake.arguments}"
+
 tasks.whenTaskAdded { task ->
     if (task.name.contains('externalNativeBuild')) {
         task.dependsOn(extractWorkerBeeHeaders)
-        task.dependsOn(extractWorkerBeeJNI)
+    }
+}
+
+preBuild.dependsOn(extractWorkerBeeHeaders)
+
+// Task to clear CMake cache
+task clearCMakeCache {
+    doLast {
+        delete project.layout.buildDirectory.dir("intermediates/cmake").get().asFile
+        delete project.layout.buildDirectory.dir(".cxx").get().asFile
+    }
+}
+
+// Ensure CMake cache is cleared before each build
+tasks.matching { it.name.startsWith('configure') && it.name.contains('CMAKE') }.all {
+    it.dependsOn(clearCMakeCache)
+    it.dependsOn(extractWorkerBeeHeaders)
+}
+
+gradle.taskGraph.beforeTask { Task task ->
+    if (task.name.startsWith('configure') && task.name.contains('CMAKE')) {
+        clearCMakeCache.execute()
+        extractWorkerBeeHeaders.execute()
     }
 }
