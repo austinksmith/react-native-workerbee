@@ -1,19 +1,24 @@
 {
   "name": "react-native-workerbee",
-  "version": "0.1.0",
-  "description": "Web Worker-like functionality for React Native using JSI",
+  "version": "1.0.0",
+  "description": "Web Worker-like functionality for React Native using JSI & STD::THREAD",
   "main": "index.js",
   "types": "index.d.ts",
   "author": "Austin K Smith",
-  "license": "MIT",
+  "license": "Artistic-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/react-native-workerbee.git"
+    "url": "https://github.com/austinksmith/react-native-workerbee.git"
   },
   "keywords": [
     "react-native",
     "android",
     "worker",
+    "hamstersjs",
+    "web wroker",
+    "threads",
+    "react-native-threads",
+    "react-native-hamsters",
     "jsi"
   ],
   "peerDependencies": {
