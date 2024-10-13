@@ -1,4 +1,4 @@
-public package com.austinksmith.reactnativeworkerbee;
+package com.austinksmith.reactnativeworkerbee;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;

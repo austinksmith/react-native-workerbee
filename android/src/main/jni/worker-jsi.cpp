@@ -4,6 +4,7 @@
 #include <fbjni/fbjni.h>
 #include <thread>
 #include <unordered_map>
+#include <iostream>
 
 using namespace facebook::jsi;
 using namespace facebook::jni;
@@ -29,6 +30,7 @@ private:
     Runtime* runtime_;
     std::shared_ptr<CallInvoker> jsCallInvoker_;
     std::unordered_map<long, std::thread> workers_;
+    std::unordered_map<long, jni::global_ref<jobject>> workerRefs_; // To store worker references
     long nextWorkerId_ = 1;
 
     explicit WorkerBeeJSI(jni::alias_ref<jhybridobject> jThis)
@@ -40,7 +42,9 @@ private:
     }
 
     void installJSIBindingsInternal() {
-        auto workerObject = Object(*runtime_);
+        runtime_->global().setProperty(*runtime_, "WorkerBeeModule", Object(*runtime_));
+
+        // Create the createWorker function
         auto createWorkerFunc = Function::createFromHostFunction(*runtime_,
             PropNameID::forAscii(*runtime_, "createWorker"),
             1,
@@ -48,22 +52,38 @@ private:
                 string scriptURL = arguments[0].getString(runtime).utf8(runtime);
                 return Value(createWorkerInternal(scriptURL));
             });
-        workerObject.setProperty(*runtime_, "createWorker", createWorkerFunc);
 
-        // TODO: Add similar functions for postMessage and terminateWorker
-
-        runtime_->global().setProperty(*runtime_, "WorkerBeeModule", workerObject);
+        runtime_->global().getProperty(*runtime_, "WorkerBeeModule").setProperty(*runtime_, "createWorker", createWorkerFunc);
     }
 
     long createWorkerInternal(const string& scriptURL) {
         long workerId = nextWorkerId_++;
         workers_[workerId] = std::thread([this, workerId, scriptURL]() {
-            // TODO: Implement worker thread logic
+            // Here you would implement your worker logic, e.g., executing the script
+            cout << "Worker " << workerId << " started with script: " << scriptURL << endl;
+            // Simulate doing work
+            std::this_thread::sleep_for(std::chrono::seconds(5)); // Example delay
+            cout << "Worker " << workerId << " finished." << endl;
         });
         return workerId;
     }
 
-    // TODO: Implement postMessage and terminateWorker methods
+    void postMessage(long workerId, const string& message) {
+        // This function should handle sending messages to a specific worker.
+        if (workers_.find(workerId) != workers_.end()) {
+            cout << "Message to worker " << workerId << ": " << message << endl;
+            // TODO: Implement message passing logic here
+        }
+    }
+
+    void terminateWorker(long workerId) {
+        if (workers_.find(workerId) != workers_.end()) {
+            // Here you would implement termination logic, e.g., stopping the thread.
+            workers_[workerId].detach(); // Detach and allow it to exit cleanly
+            workers_.erase(workerId); // Remove from map
+            cout << "Worker " << workerId << " terminated." << endl;
+        }
+    }
 
 public:
     static jni::local_ref<jhybriddata> initHybrid(

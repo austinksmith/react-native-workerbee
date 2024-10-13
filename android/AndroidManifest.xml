@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.austinksmith.reactnativeworkerbee">
+
+    <application>
+        <!-- This library does not declare any activities or services -->
+    </application>
+
+</manifest>
