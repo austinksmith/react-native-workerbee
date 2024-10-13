@@ -66,7 +66,7 @@ dependencies {
     implementation("com.facebook.react:react-native:+") {
         exclude group:'com.facebook.fbjni'
     }
-    implementation 'com.facebook.fbjni:fbjni:0.2.2'
+    implementation 'com.facebook.fbjni:fbjni:0.3.0'
 }
 
 configurations {
@@ -74,7 +74,7 @@ configurations {
 }
 
 dependencies {
-    workerbeeHeaders("com.facebook.fbjni:fbjni:0.2.2")
+    workerbeeHeaders("com.facebook.fbjni:fbjni:0.3.0")
 }
 
 task createFbjniDir {

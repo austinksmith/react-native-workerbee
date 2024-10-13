@@ -10,7 +10,7 @@ using namespace facebook::jsi;
 using namespace facebook::jni;
 using namespace std;
 
-class WorkerBeeJSI : public jni::HybridClass<WorkerBeeJSI> {
+class WorkerBeeJSI : public facebook::jni::HybridClass<WorkerBeeJSI> {
 public:
     static constexpr auto kJavaDescriptor = "Lcom/austinksmith/reactnativeworkerbee/WorkerBeeModule;";
 
@@ -26,22 +26,25 @@ public:
 
 private:
     friend HybridBase;
-    jni::global_ref<jobject> javaPart_;
+    facebook::jni::global_ref<jobject> javaPart_;
     Runtime* runtime_;
     std::shared_ptr<CallInvoker> jsCallInvoker_;
     std::unordered_map<long, std::thread> workers_;
-    std::unordered_map<long, jni::global_ref<jobject>> workerRefs_; // To store worker references
     long nextWorkerId_ = 1;
 
-    explicit WorkerBeeJSI(jni::alias_ref<jhybridobject> jThis)
-        : javaPart_(jni::make_global(jThis)) {}
+    explicit WorkerBeeJSI(facebook::jni::alias_ref<jhybridobject> jThis, Runtime* runtime, std::shared_ptr<CallInvoker> jsCallInvoker)
+        : javaPart_(facebook::jni::make_global(jThis)), runtime_(runtime), jsCallInvoker_(jsCallInvoker) {}
 
-    static void installJSIBindings(jni::alias_ref<jhybridobject> jThis) {
-        auto instance = getInstance(jThis);
-        instance->installJSIBindingsInternal();
+    static facebook::jni::local_ref<jhybriddata> initHybrid(
+        facebook::jni::alias_ref<jhybridobject> jThis,
+        jlong jsContext,
+        facebook::jni::alias_ref<CallInvokerHolder::javaobject> jsCallInvokerHolder) {
+        
+        auto jsCallInvoker = jsCallInvokerHolder->cthis()->getCallInvoker();
+        return makeCxxInstance(jThis, reinterpret_cast<Runtime*>(jsContext), jsCallInvoker);
     }
 
-    void installJSIBindingsInternal() {
+    void installJSIBindings() {
         runtime_->global().setProperty(*runtime_, "WorkerBeeModule", Object(*runtime_));
 
         // Create the createWorker function
@@ -79,24 +82,17 @@ private:
     void terminateWorker(long workerId) {
         if (workers_.find(workerId) != workers_.end()) {
             // Here you would implement termination logic, e.g., stopping the thread.
-            workers_[workerId].detach(); // Detach and allow it to exit cleanly
+            if (workers_[workerId].joinable()) {
+                workers_[workerId].join(); // Ensure worker is finished before terminating
+            }
             workers_.erase(workerId); // Remove from map
             cout << "Worker " << workerId << " terminated." << endl;
         }
     }
-
-public:
-    static jni::local_ref<jhybriddata> initHybrid(
-        jni::alias_ref<jhybridobject> jThis,
-        jlong jsContext,
-        jni::alias_ref<CallInvokerHolder::javaobject> jsCallInvokerHolder) {
-        auto jsCallInvoker = jsCallInvokerHolder->cthis()->getCallInvoker();
-        return makeCxxInstance(jThis, reinterpret_cast<Runtime*>(jsContext), jsCallInvoker);
-    }
 };
 
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
-    return jni::initialize(vm, [] {
+    return facebook::jni::initialize(vm, [] {
         WorkerBeeJSI::registerNatives();
     });
 }

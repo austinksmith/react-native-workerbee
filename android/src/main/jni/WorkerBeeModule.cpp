@@ -4,12 +4,13 @@
 #include <thread>
 #include <unordered_map>
 #include <iostream>
+#include <fbjni/fbjni.h>  // Add this to ensure correct JNI usage
 
 using namespace facebook::jsi;
 using namespace facebook::jni;
 using namespace std;
 
-class WorkerBeeModule : public jni::HybridClass<WorkerBeeModule> {
+class WorkerBeeModule : public facebook::jni::HybridClass<WorkerBeeModule> {
 public:
     static constexpr auto kJavaDescriptor = "Lcom/austinksmith/reactnativeworkerbee/WorkerBeeModule;";
 
@@ -25,25 +26,25 @@ public:
 
 private:
     friend HybridBase;
-    jni::global_ref<jobject> javaPart_;
+    facebook::jni::global_ref<jobject> javaPart_;
     Runtime* runtime_;
     std::shared_ptr<CallInvoker> jsCallInvoker_;
     std::unordered_map<long, std::thread> workers_;
     long nextWorkerId_ = 1;
 
-    explicit WorkerBeeModule(jni::alias_ref<jhybridobject> jThis)
-        : javaPart_(jni::make_global(jThis)) {}
+    explicit WorkerBeeModule(jni::alias_ref<jhybridobject> jThis, Runtime* runtime, std::shared_ptr<CallInvoker> jsCallInvoker)
+        : javaPart_(jni::make_global(jThis)), runtime_(runtime), jsCallInvoker_(jsCallInvoker) {}
 
-    static jni::local_ref<jhybriddata> initHybrid(
-        jni::alias_ref<jhybridobject> jThis,
+    static facebook::jni::local_ref<jhybriddata> initHybrid(
+        facebook::jni::alias_ref<jhybridobject> jThis,
         jlong jsContext,
-        jni::alias_ref<CallInvokerHolder::javaobject> jsCallInvokerHolder) {
+        facebook::jni::alias_ref<CallInvokerHolder::javaobject> jsCallInvokerHolder) {
+        
         auto jsCallInvoker = jsCallInvokerHolder->cthis()->getCallInvoker();
         return makeCxxInstance(jThis, reinterpret_cast<Runtime*>(jsContext), jsCallInvoker);
     }
 
     void installJSIBindings() {
-        // Install JSI bindings here
         auto workerObject = Object(*runtime_);
         auto createWorkerFunc = Function::createFromHostFunction(*runtime_,
             PropNameID::forAscii(*runtime_, "createWorker"),
@@ -75,7 +76,9 @@ private:
 
     void terminateWorker(long workerId) {
         if (workers_.find(workerId) != workers_.end()) {
-            workers_[workerId].detach(); // Detach to allow it to exit cleanly
+            if (workers_[workerId].joinable()) {
+                workers_[workerId].join(); // Ensure worker is finished before terminating
+            }
             workers_.erase(workerId);
             cout << "Worker " << workerId << " terminated." << endl;
         }
@@ -84,7 +87,7 @@ private:
 
 // JNI function for loading the module
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
-    return jni::initialize(vm, [] {
+    return facebook::jni::initialize(vm, [] {
         WorkerBeeModule::registerNatives();
     });
 }
