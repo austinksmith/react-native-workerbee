@@ -2,6 +2,14 @@
 
 A Web Worker-like implementation for React Native using JSI.
 
+**Author**: Austin K. Smith
+
+![react-native-workerbee-logo](https://asmithdev.com/img/workerbee.png)
+
+
+[![npm version](https://img.shields.io/npm/v/react-native-workerbee.svg?style=flat-square)](https://www.npmjs.com/package/react-native-workerbee)
+[![downloads](https://img.shields.io/npm/dm/react-native-workerbee.svg?style=flat-square)](https://www.npmjs.com/package/react-native-workerbee)
+
 ## Installation
 
 ```sh
