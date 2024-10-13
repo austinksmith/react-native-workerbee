@@ -1,25 +1,45 @@
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.13)
 
-# Define your project name and version
-project(reactnativeworkerbee)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_CXX_STANDARD 17)
 
-# Set your library name and specify source files
+# Debug output
+message(STATUS "NODE_MODULES_DIR is set to: ${NODE_MODULES_DIR}")
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR is set to: ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "BUILD_DIR is set to: ${CMAKE_BINARY_DIR}")
+
+# Define the library
 add_library(workerbee-jni SHARED
-    src/main/jni/worker-jsi.cpp
-    src/main/jni/WorkerBeeModule.cpp # Include any other C++ source files here
+  ${NODE_MODULES_DIR}/react-native-workerbee/android/src/main/jni/worker-jsi.cpp
+  ${NODE_MODULES_DIR}/react-native-workerbee/android/src/main/jni/WorkerBeeModule.cpp # Include any other C++ source files here
 )
 
-# Include directories for React Native and your JNI folder
-include_directories(${CMAKE_SOURCE_DIR}/../..)
-include_directories(${CMAKE_SOURCE_DIR}/src/main/jni)  # Ensure this points to your JNI folder
+find_package(fbjni REQUIRED CONFIG)
 
-# Find the required Android libraries
-find_library(log-lib log)
+# Set include directories for React Native and Hermes
+target_include_directories(workerbee-jni
+    PRIVATE
+    "${NODE_MODULES_DIR}/react-native/ReactCommon"
+    "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/react/turbomodule"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/callinvoker"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/hermes/executor"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_BINARY_DIR}/workerbee/headers"   # Include the extracted fbjni headers from the Gradle task
+)
 
-# Link against the required libraries
+# Find required libraries
+find_library(LOG_LIB log)
+
+# Link libraries
 target_link_libraries(workerbee-jni
-    ${log-lib}  # Link the Android log library
-    jsi         # Link to JSI if you are using it
-    fbjni       # Link to FBJNI, needed for JNI binding
-    # Add other dependencies here if needed
+    android
+    ${LOG_LIB}
+    jsi
+    fbjni::fbjni
+    react_nativemodule_core
 )
+
+# Additional debug output
+message(STATUS "JSI include path: ${NODE_MODULES_DIR}/react-native/ReactCommon/jsi")
+message(STATUS "FBJNI include path: ${CMAKE_BINARY_DIR}/workerbee/headers")

@@ -14,16 +14,20 @@ apply plugin: 'com.android.library'
 android {
     namespace "com.austinksmith.reactnativeworkerbee"
     compileSdkVersion rootProject.ext.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 31
-    externalNativeBuild {
-        cmake {
-            path "CMakeLists.txt" // Ensure this points to your CMakeLists.txt file
-            cppFlags "" // Specify any necessary C++ flags here
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" // Adjust as needed
-        }
-    }
+
     defaultConfig {
         minSdkVersion rootProject.ext.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 21
         targetSdkVersion rootProject.ext.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 31
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file("${project.rootDir}/node_modules/react-native-workerbee/android/src/main/CMakeLists.txt")
+        }
+    }
+
+    buildFeatures {
+        prefab true
     }
 }
 
@@ -33,5 +37,54 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.facebook.react:react-native:+'
+     implementation("com.facebook.react:react-native:+") {
+        exclude group:'com.facebook.fbjni'
+    }
+    implementation 'com.facebook.fbjni:fbjni:0.2.2'
+}
+
+// Configuration for extracting fbjni headers and JNI files for workerbee
+configurations {
+    workerbeeHeaders
+    workerbeeJNI
+}
+
+dependencies {
+    workerbeeHeaders("com.facebook.fbjni:fbjni:0.2.2:headers")
+}
+
+// Task to extract fbjni header files
+task extractWorkerBeeHeaders {
+    doLast {
+        configurations.workerbeeHeaders.files.each {
+            def file = it.absoluteFile
+            copy {
+                from zipTree(file)
+                into "$buildDir/workerbee/headers/$file.name"
+                include "**/*.h"
+            }
+        }
+    }
+}
+
+// Task to extract JNI files for workerbee
+task extractWorkerBeeJNI {
+    doLast {
+        configurations.workerbeeJNI.files.each {
+            def file = it.absoluteFile
+            copy {
+                from zipTree(file)
+                into "$buildDir/workerbee/jni/$file.name"
+                include "jni/**/*"
+            }
+        }
+    }
+}
+
+// Ensure extraction tasks run before the native build for workerbee
+tasks.whenTaskAdded { task ->
+    if (task.name.contains('externalNativeBuild')) {
+        task.dependsOn(extractWorkerBeeHeaders)
+        task.dependsOn(extractWorkerBeeJNI)
+    }
 }

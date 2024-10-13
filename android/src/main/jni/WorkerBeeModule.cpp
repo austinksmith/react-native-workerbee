@@ -1,7 +1,6 @@
 #include <jni.h>
 #include <jsi/jsi.h>
 #include <ReactCommon/CallInvokerHolder.h>
-#include <fbjni/fbjni.h>
 #include <thread>
 #include <unordered_map>
 #include <iostream>
