@@ -44,7 +44,7 @@ android {
     }
 
     buildFeatures {
-        prefab true
+        prefab false
     }
 
     sourceSets {
