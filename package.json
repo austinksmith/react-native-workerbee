@@ -23,5 +23,17 @@
   "devDependencies": {
     "@types/react": "^17.0.0",
     "@types/react-native": "^0.65.0"
+  },
+  "react-native": "index.js",
+  "source": "index.js",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "android",
+    "ios",
+    "react-native-workerbee.podspec"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
