@@ -14,7 +14,13 @@ apply plugin: 'com.android.library'
 android {
     namespace "com.austinksmith.reactnativeworkerbee"
     compileSdkVersion rootProject.ext.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 31
-
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt" // Ensure this points to your CMakeLists.txt file
+            cppFlags "" // Specify any necessary C++ flags here
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" // Adjust as needed
+        }
+    }
     defaultConfig {
         minSdkVersion rootProject.ext.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 21
         targetSdkVersion rootProject.ext.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 31
