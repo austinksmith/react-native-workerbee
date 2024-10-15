@@ -1,9 +1,11 @@
 buildscript {
+    ext {
+        reactNativeVersion = "0.75.4" // Update this to your React Native version
+    }
     repositories {
         google()
         mavenCentral()
     }
-
     dependencies {
         classpath("com.android.tools.build:gradle:7.3.1")
     }
@@ -11,28 +13,42 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
 // Define fbjniHeadersDir as a project-wide property
 project.ext.fbjniHeadersDir = new File(project.buildDir, "generated/source/fbjni-headers").absolutePath
 
 android {
     namespace "com.austinksmith.reactnativeworkerbee"
-    compileSdkVersion rootProject.ext.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 31
+    compileSdkVersion safeExtGet('compileSdkVersion', 31)
 
     defaultConfig {
-        minSdkVersion rootProject.ext.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 23
-        targetSdkVersion rootProject.ext.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 31
+        minSdkVersion safeExtGet('minSdkVersion', 21)
+        targetSdkVersion safeExtGet('targetSdkVersion', 31)
+        versionCode 1
+        versionName "1.0"
 
         externalNativeBuild {
             cmake {
                 arguments "-DFBJNI_HEADERS_DIR=${project.ext.fbjniHeadersDir}",
-                          "-DNODE_MODULES_DIR=${rootProject.projectDir}/../node_modules"
+                          "-DNODE_MODULES_DIR=${rootProject.projectDir}/../node_modules",
+                          "-DREACT_NATIVE_DIR=${rootProject.projectDir}/../node_modules/react-native",
                           "-DANDROID_STL=c++_shared"
                 cppFlags "-std=c++17"
             }
         }
 
         ndk {
-            stl "c++_shared"
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
@@ -44,7 +60,7 @@ android {
     }
 
     buildFeatures {
-        prefab false
+        prefab true
     }
 
     sourceSets {
@@ -53,20 +69,32 @@ android {
             java {
                 srcDirs = ['src/main/java', 'src/main/java-sdk23']
             }
+            jniLibs.srcDirs = ['src/main/jniLibs', "${rootProject.projectDir}/../node_modules/react-native/ReactAndroid/src/main/jni/first-party/jsi/"]
         }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
 repositories {
     mavenCentral()
     google()
+    maven {
+        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+        url "$rootDir/../node_modules/react-native/android"
+    }
 }
 
 dependencies {
-    implementation("com.facebook.react:react-native:+") {
-        exclude group:'com.facebook.fbjni'
-    }
+    //noinspection GradleDynamicVersion
+    implementation "com.facebook.react:react-android:${reactNativeVersion}"
+    implementation "com.facebook.react:hermes-android:${reactNativeVersion}"
     implementation 'com.facebook.fbjni:fbjni:0.3.0'
+    implementation 'com.facebook.yoga:proguard-annotations:1.19.0'
+    implementation 'androidx.annotation:annotation:1.3.0'
 }
 
 configurations {
@@ -125,4 +153,26 @@ gradle.taskGraph.beforeTask { Task task ->
         clearCMakeCache.execute()
         extractWorkerBeeHeaders.execute()
     }
+}
+
+// Task to find React Native libraries
+task findReactNativeLibs {
+    doLast {
+        def aarFiles = fileTree(dir: "${rootProject.buildDir}", include: '**/react-native-*.aar')
+        aarFiles.each { aarFile ->
+            println "Found React Native AAR: ${aarFile.absolutePath}"
+        }
+
+        def jsiFiles = fileTree(dir: "${rootProject.buildDir}", include: '**/libjsi.so')
+        jsiFiles.each { jsiFile ->
+            println "Found libjsi.so: ${jsiFile.absolutePath}"
+        }
+    }
+}
+
+afterEvaluate {
+    // If you're having trouble with the build, uncomment this line to get more detailed output
+    // tasks.matching { it.name.startsWith('compile') && it.name.endsWith('Cmake') }.configureEach {
+    //     logging.captureStandardOutput LogLevel.INFO
+    // }
 }

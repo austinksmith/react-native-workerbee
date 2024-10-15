@@ -4,7 +4,7 @@
 #include <thread>
 #include <unordered_map>
 #include <iostream>
-#include <fbjni/fbjni.h>  // Add this to ensure correct JNI usage
+#include <fbjni/fbjni.h>
 
 using namespace facebook::jsi;
 using namespace facebook::jni;
@@ -28,17 +28,17 @@ private:
     friend HybridBase;
     facebook::jni::global_ref<jobject> javaPart_;
     Runtime* runtime_;
-    std::shared_ptr<CallInvoker> jsCallInvoker_;
+    std::shared_ptr<facebook::react::CallInvoker> jsCallInvoker_;
     std::unordered_map<long, std::thread> workers_;
     long nextWorkerId_ = 1;
 
-    explicit WorkerBeeModule(jni::alias_ref<jhybridobject> jThis, Runtime* runtime, std::shared_ptr<CallInvoker> jsCallInvoker)
-        : javaPart_(jni::make_global(jThis)), runtime_(runtime), jsCallInvoker_(jsCallInvoker) {}
+    explicit WorkerBeeModule(facebook::jni::alias_ref<jhybridobject> jThis, Runtime* runtime, std::shared_ptr<facebook::react::CallInvoker> jsCallInvoker)
+        : javaPart_(facebook::jni::make_global(jThis)), runtime_(runtime), jsCallInvoker_(jsCallInvoker) {}
 
     static facebook::jni::local_ref<jhybriddata> initHybrid(
         facebook::jni::alias_ref<jhybridobject> jThis,
         jlong jsContext,
-        facebook::jni::alias_ref<CallInvokerHolder::javaobject> jsCallInvokerHolder) {
+        facebook::jni::alias_ref<facebook::react::CallInvokerHolder::javaobject> jsCallInvokerHolder) {
         
         auto jsCallInvoker = jsCallInvokerHolder->cthis()->getCallInvoker();
         return makeCxxInstance(jThis, reinterpret_cast<Runtime*>(jsContext), jsCallInvoker);
@@ -51,10 +51,10 @@ private:
             1,
             [this](Runtime& runtime, const Value& thisValue, const Value* arguments, size_t count) -> Value {
                 string scriptURL = arguments[0].getString(runtime).utf8(runtime);
-                return Value(createWorkerInternal(scriptURL));
+                return Value((double)createWorkerInternal(scriptURL));
             });
-        workerObject.setProperty(*runtime_, "createWorker", createWorkerFunc);
-        runtime_->global().setProperty(*runtime_, "WorkerBeeModule", workerObject);
+        workerObject.setProperty(*runtime_, "createWorker", std::move(createWorkerFunc));
+        runtime_->global().setProperty(*runtime_, "WorkerBeeModule", std::move(workerObject));
     }
 
     long createWorkerInternal(const string& scriptURL) {
@@ -65,6 +65,10 @@ private:
             cout << "Worker " << workerId << " finished." << endl;
         });
         return workerId;
+    }
+
+    void createWorker(jstring scriptURL) {
+        // Implementation
     }
 
     void postMessage(long workerId, const string& message) {
@@ -85,9 +89,13 @@ private:
     }
 };
 
+// Forward declaration of the function to register WorkerBeeJSI natives
+void registerWorkerbeeJSINatives();
+
 // JNI function for loading the module
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
     return facebook::jni::initialize(vm, [] {
         WorkerBeeModule::registerNatives();
+        registerWorkerbeeJSINatives(); // Register WorkerBeeJSI natives
     });
 }

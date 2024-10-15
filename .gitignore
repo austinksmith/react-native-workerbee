@@ -1,2 +1,4 @@
 android/build
 node_modules
+.vscode
+/android/build/
