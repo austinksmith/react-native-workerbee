@@ -35,6 +35,7 @@ android {
                 arguments "-DFBJNI_HEADERS_DIR=${project.ext.fbjniHeadersDir}",
                           "-DNODE_MODULES_DIR=${rootProject.projectDir}/../node_modules",
                           "-DREACT_NATIVE_DIR=${rootProject.projectDir}/../node_modules/react-native",
+                          "-DEXTRACTED_JNI_DIR=${buildDir}/extractedJni",
                           "-DANDROID_STL=c++_shared"
                 cppFlags "-std=c++17"
             }
@@ -102,7 +103,7 @@ configurations {
 }
 
 dependencies {
-    workerbeeHeaders("com.facebook.fbjni:fbjni:0.3.0")
+    workerbeeHeaders("com.facebook.fbjni:fbjni:+")
 }
 
 task createFbjniDir {
@@ -121,10 +122,62 @@ task extractWorkerBeeHeaders(type: Copy) {
     includeEmptyDirs = false
 }
 
+// Custom task to extract JNI files, which accepts files dynamically
+task extractJNIFiles(type: Copy) {
+    // Define an input property that you can pass the files to
+    ext.inputFiles = []
+
+    // Specify the output directory for extraction
+    def outputDir = new File(buildDir, 'extractedJni')
+
+    // Ensure the output directory exists
+    doFirst {
+        outputDir.mkdirs()
+    }
+
+    doLast {
+        if (inputFiles.isEmpty()) {
+            throw new GradleException("No input files provided to extractJNI task")
+        }
+
+        inputFiles.each { file ->
+            println "Extracting JNI from: ${file}"
+            // Logic to handle AAR file (e.g., copy, unzip, etc.)
+            if (file.name) {
+                // Example logic to unzip the AAR file if necessary
+                copy {
+                    from zipTree(file)
+                    into "${outputDir}/${file.nameWithoutExtension}"
+                }
+                println "Extracted ${file.name} to ${buildDir}/extractedJni/${file.nameWithoutExtension}"
+            } else {
+                println "Skipping non-AAR file: ${file}"
+            }
+        }
+    }
+}
+
+def extractJNI(Object... files) {
+    extractJNIFiles.inputFiles.addAll(files)
+}
+
 extractWorkerBeeHeaders.dependsOn(createFbjniDir)
 
 println "fbjniHeadersDir is set to: ${project.ext.fbjniHeadersDir}"
 println "CMake arguments: ${android.defaultConfig.externalNativeBuild.cmake.arguments}"
+
+extractJNI("com.facebook.fbjni:fbjni:+")
+
+// def rnAAR = fileTree("${rootDir}/../node_modules/react-native/android").matching({ it.include "**/**/*.aar" }).singleFile
+// def jscAAR = fileTree("${rootDir}/../node_modules/jsc-android/dist/org/webkit/android-jsc").matching({ it.include "**/**/*.aar" }).singleFile
+
+// def inputFile = new File(rootDir, '../node_modules/react-native/package.json')
+// def json = new JsonSlurper().parseText(inputFile.text)
+// def reactNativeVersion = json.version as String
+// def (major, minor, patch) = reactNativeVersion.tokenize('.')
+// def raAAR = "${rootDir}/../node_modules/react-native-reanimated/android/react-native-reanimated-${minor}.aar"
+
+// extractJNI(files(rnAAR, jscAAR))
 
 tasks.whenTaskAdded { task ->
     if (task.name.contains('externalNativeBuild')) {
@@ -175,4 +228,9 @@ afterEvaluate {
     // tasks.matching { it.name.startsWith('compile') && it.name.endsWith('Cmake') }.configureEach {
     //     logging.captureStandardOutput LogLevel.INFO
     // }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    android.defaultConfig.externalNativeBuild.cmake.arguments += 
+        "-DIS_CLEAN_BUILD=${taskGraph.hasTask(':clean')}"
 }
