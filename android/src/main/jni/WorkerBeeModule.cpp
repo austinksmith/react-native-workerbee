@@ -90,7 +90,7 @@ private:
 };
 
 // Forward declaration of the function to register WorkerBeeJSI natives
-void registerWorkerbeeJSINatives();
+extern "C" __attribute__((visibility("default"))) void registerWorkerbeeJSINatives();
 
 // JNI function for loading the module
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {

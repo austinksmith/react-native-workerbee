@@ -83,6 +83,6 @@ private:
 };
 
 // Function to register WorkerBeeJSI natives, called from JNI_OnLoad in WorkerBeeModule.cpp
-extern "C" void registerWorkerbeeJSINatives() {
+extern "C" __attribute__((visibility("default"))) void registerWorkerbeeJSINatives() {
     WorkerBeeJSI::registerNatives();
 }

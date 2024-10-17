@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 17)
 
+set(PACKAGE_NAME "react-native-workerbee")
+
+
 # Debug output
 message(STATUS "NODE_MODULES_DIR is set to: ${NODE_MODULES_DIR}")
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR is set to: ${CMAKE_CURRENT_SOURCE_DIR}")
@@ -32,6 +35,8 @@ file(GLOB LIBJSC_DIR "${EXTRACTED_JNI_DIR}/android-jsc*.aar/jni/${ANDROID_ABI}")
 # Find package for React Native
 find_package(ReactAndroid REQUIRED CONFIG)
 
+set(build_DIR ${CMAKE_SOURCE_DIR}/build)
+
 # Define the library for workerbee JNI
 add_library(workerbee-jni SHARED
   ${NODE_MODULES_DIR}/react-native-workerbee/android/src/main/jni/worker-jsi.cpp
@@ -46,45 +51,49 @@ target_include_directories(workerbee-jni
     "${REACT_NATIVE_DIR}/ReactCommon"
     "${REACT_NATIVE_DIR}/ReactCommon/callinvoker"
     "${REACT_NATIVE_DIR}/ReactCommon/jsi/jsi"
-    "${FBJNI_INCLUDE_DIR}"
+    # "${FBJNI_INCLUDE_DIR}"
 )
 
-# Find libraries (React Native JNI, JSC, FBJNI, etc.)
-find_library(
-    FBJNI_LIB
-    fbjni
-    PATHS "${EXTRACTED_JNI_DIR}/jni/${ANDROID_ABI}"
-    NO_CMAKE_FIND_ROOT_PATH
-)
+# # Find libraries (React Native JNI, JSC, FBJNI, etc.)
+# find_library(
+#     FBJNI_LIB
+#     fbjni
+#     PATHS "${EXTRACTED_JNI_DIR}/jni/${ANDROID_ABI}"
+#     NO_CMAKE_FIND_ROOT_PATH
+# )
 
-find_library(
-    REACT_NATIVE_JNI_LIB
-    reactnativejni
-    PATHS "${LIBRN_DIR}"
-    NO_CMAKE_FIND_ROOT_PATH
-)
+find_package(fbjni REQUIRED CONFIG)
 
-find_library(
-    REACT_NATIVE_UTILS_LIB
-    reactnativeutilsjni
-    PATHS "${LIBRN_DIR}"
-    NO_CMAKE_FIND_ROOT_PATH
-)
+target_link_libraries(workerbee-jni fbjni::fbjni)
+
+# find_library(
+#     REACT_NATIVE_JNI_LIB
+#     reactnativejni
+#     PATHS "${LIBRN_DIR}"
+#     NO_CMAKE_FIND_ROOT_PATH
+# )
+
+# find_library(
+#     REACT_NATIVE_UTILS_LIB
+#     reactnativeutilsjni
+#     PATHS "${LIBRN_DIR}"
+#     NO_CMAKE_FIND_ROOT_PATH
+# )
 
 # Handle FBJNI linking based on build type
-if(NOT IS_CLEAN_BUILD)
-    # Regular build: try to find and link the .so file
-    set(FBJNI_LIB_PATH "${EXTRACTED_JNI_DIR}/jni/${ANDROID_ABI}/libfbjni.so")
-    if(EXISTS ${FBJNI_LIB_PATH})
-        message(STATUS "Found FBJNI library at ${FBJNI_LIB_PATH}")
-        target_link_libraries(workerbee-jni ${FBJNI_LIB_PATH})
-    else()
-        message(WARNING "FBJNI library not found at ${FBJNI_LIB_PATH}. Falling back to ReactAndroid::fbjni")
-    endif()
-else()
-    # Clean build: use ReactAndroid::fbjni
-    message(STATUS "Clean build: using ReactAndroid::fbjni")
-endif()
+# if(NOT IS_CLEAN_BUILD)
+#     # Regular build: try to find and link the .so file
+#     set(FBJNI_LIB_PATH "${EXTRACTED_JNI_DIR}/jni/${ANDROID_ABI}/libfbjni.so")
+#     if(EXISTS ${FBJNI_LIB_PATH})
+#         message(STATUS "Found FBJNI library at ${FBJNI_LIB_PATH}")
+#         target_link_libraries(workerbee-jni ${FBJNI_LIB_PATH})
+#     else()
+#         message(WARNING "FBJNI library not found at ${FBJNI_LIB_PATH}. Falling back to ReactAndroid::fbjni")
+#     endif()
+# else()
+#     # Clean build: use ReactAndroid::fbjni
+#     message(STATUS "Clean build: using ReactAndroid::fbjni")
+# endif()
 
 # Link libraries
 target_link_libraries(workerbee-jni
@@ -93,7 +102,7 @@ target_link_libraries(workerbee-jni
     ReactAndroid::jsi
     ReactAndroid::reactnativejni
     ReactAndroid::react_nativemodule_core
-    ${FBJNI_LIB}       # Link extracted FBJNI .so
+    # ${FBJNI_LIB}       # Link extracted FBJNI .so
     ${REACT_NATIVE_JNI_LIB}
     ${REACT_NATIVE_UTILS_LIB}
 )

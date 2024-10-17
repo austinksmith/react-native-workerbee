@@ -103,7 +103,7 @@ configurations {
 }
 
 dependencies {
-    workerbeeHeaders("com.facebook.fbjni:fbjni:+")
+    workerbeeHeaders("com.facebook.fbjni:fbjni:0.3.0")
 }
 
 task createFbjniDir {
@@ -233,4 +233,12 @@ afterEvaluate {
 gradle.taskGraph.whenReady { taskGraph ->
     android.defaultConfig.externalNativeBuild.cmake.arguments += 
         "-DIS_CLEAN_BUILD=${taskGraph.hasTask(':clean')}"
+}
+
+configurations.all {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+        if (details.requested.group == 'com.facebook.fbjni' && details.requested.name == 'fbjni') {
+            details.useVersion '0.3.0'
+        }
+    }
 }
