@@ -1,6 +1,6 @@
 {
   "name": "react-native-workerbee",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Web Worker-like functionality for React Native using JSI & STD::THREAD",
   "main": "index.js",
   "types": "index.d.ts",
@@ -36,8 +36,14 @@
     "index.d.ts",
     "android",
     "ios",
-    "react-native-workerbee.podspec"
+    "react-native-workerbee.podspec",
+    "codegenConfig.json"
   ],
+  "codegenConfig": {
+    "name": "react-native-workerbee",
+    "type": "modules",
+    "jsSrcsDir": "src"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   }

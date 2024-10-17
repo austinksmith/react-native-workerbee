@@ -1,0 +1,8 @@
+{
+  "name": "react-native-workerbee",
+  "type": "modules",
+  "jsSrcsDir": "src",
+  "android": {
+    "javaPackageName": "com.austinksmith.reactnativeworkerbee"
+  }
+}
