@@ -1,6 +1,6 @@
 buildscript {
     ext {
-        reactNativeVersion = "0.75.4" // Update this to your React Native version
+        reactNativeVersion = "0.75.4"
     }
     repositories {
         google()
@@ -13,31 +13,23 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
-def safeExtGet(prop, fallback) {
-    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
-}
-
-// Define fbjniHeadersDir as a project-wide property
-project.ext.fbjniHeadersDir = new File(project.buildDir, "generated/source/fbjni-headers").absolutePath
-
 android {
     namespace "com.austinksmith.reactnativeworkerbee"
-    compileSdkVersion safeExtGet('compileSdkVersion', 31)
+    compileSdkVersion 34
 
     defaultConfig {
-        minSdkVersion safeExtGet('minSdkVersion', 21)
-        targetSdkVersion safeExtGet('targetSdkVersion', 31)
+        minSdkVersion 23
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
 
         externalNativeBuild {
             cmake {
-                arguments "-DFBJNI_HEADERS_DIR=${project.ext.fbjniHeadersDir}",
-                          "-DNODE_MODULES_DIR=${rootProject.projectDir}/../node_modules",
-                          "-DREACT_NATIVE_DIR=${rootProject.projectDir}/../node_modules/react-native",
-                          "-DEXTRACTED_JNI_DIR=${buildDir}/extractedJni",
-                          "-DANDROID_STL=c++_shared"
-                cppFlags "-std=c++17"
+                arguments "-DREACT_NATIVE_DIR=${rootProject.projectDir}/../node_modules/react-native",
+                         "-DANDROID_STL=c++_shared"
+                cppFlags "-std=c++17",
+                        "-fexceptions",
+                        "-frtti"
             }
         }
 
@@ -55,7 +47,7 @@ android {
 
     externalNativeBuild {
         cmake {
-            path file("${project.rootDir}/../node_modules/react-native-workerbee/android/CMakeLists.txt")
+            path "CMakeLists.txt"
             version "3.22.1"
         }
     }
@@ -64,181 +56,56 @@ android {
         prefab true
     }
 
-    sourceSets {
-        main {
-            manifest.srcFile 'src/main/AndroidManifest.xml'
-            java {
-                srcDirs = ['src/main/java', 'src/main/java-sdk23']
-            }
-            jniLibs.srcDirs = ['src/main/jniLibs', "${rootProject.projectDir}/../node_modules/react-native/ReactAndroid/src/main/jni/first-party/jsi/"]
-        }
-    }
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    packagingOptions {
+        exclude 'lib/arm64-v8a/libfabricjni.so'
+        exclude 'lib/arm64-v8a/libjsi.so'
+        exclude 'lib/arm64-v8a/libreact_nativemodule_core.so'
+        exclude 'lib/arm64-v8a/libreactnativejni.so'
+
+        exclude 'lib/armeabi-v7a/libfabricjni.so'
+        exclude 'lib/armeabi-v7a/libjsi.so'
+        exclude 'lib/armeabi-v7a/libreact_nativemodule_core.so'
+        exclude 'lib/armeabi-v7a/libreactnativejni.so'
+
+        exclude 'lib/x86/libfabricjni.so'
+        exclude 'lib/x86/libjsi.so'
+        exclude 'lib/x86/libreact_nativemodule_core.so'
+        exclude 'lib/x86/libreactnativejni.so'
+
+        exclude 'lib/x86_64/libfabricjni.so'
+        exclude 'lib/x86_64/libjsi.so'
+        exclude 'lib/x86_64/libreact_nativemodule_core.so'
+        exclude 'lib/x86_64/libreactnativejni.so'
+    }
 }
 
 repositories {
-    mavenCentral()
     google()
+    mavenCentral()
     maven {
-        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
         url "$rootDir/../node_modules/react-native/android"
     }
 }
 
 dependencies {
-    //noinspection GradleDynamicVersion
     implementation "com.facebook.react:react-android:${reactNativeVersion}"
+    implementation "com.facebook.fbjni:fbjni:0.6.0"
     implementation "com.facebook.react:hermes-android:${reactNativeVersion}"
-    implementation 'com.facebook.fbjni:fbjni:0.3.0'
-    implementation 'com.facebook.yoga:proguard-annotations:1.19.0'
-    implementation 'androidx.annotation:annotation:1.3.0'
-}
-
-configurations {
-    workerbeeHeaders
-}
-
-dependencies {
-    workerbeeHeaders("com.facebook.fbjni:fbjni:0.3.0")
-}
-
-task createFbjniDir {
-    doLast {
-        file(project.ext.fbjniHeadersDir).mkdirs()
-    }
-}
-
-task extractWorkerBeeHeaders(type: Copy) {
-    from {
-        configurations.workerbeeHeaders.collect { zipTree(it) }
-    }
-    into project.ext.fbjniHeadersDir
-    include "**/*.h"
-    include "**/*.hpp"
-    includeEmptyDirs = false
-}
-
-// Custom task to extract JNI files, which accepts files dynamically
-task extractJNIFiles(type: Copy) {
-    // Define an input property that you can pass the files to
-    ext.inputFiles = []
-
-    // Specify the output directory for extraction
-    def outputDir = new File(buildDir, 'extractedJni')
-
-    // Ensure the output directory exists
-    doFirst {
-        outputDir.mkdirs()
-    }
-
-    doLast {
-        if (inputFiles.isEmpty()) {
-            throw new GradleException("No input files provided to extractJNI task")
-        }
-
-        inputFiles.each { file ->
-            println "Extracting JNI from: ${file}"
-            // Logic to handle AAR file (e.g., copy, unzip, etc.)
-            if (file.name) {
-                // Example logic to unzip the AAR file if necessary
-                copy {
-                    from zipTree(file)
-                    into "${outputDir}/${file.nameWithoutExtension}"
-                }
-                println "Extracted ${file.name} to ${buildDir}/extractedJni/${file.nameWithoutExtension}"
-            } else {
-                println "Skipping non-AAR file: ${file}"
-            }
-        }
-    }
-}
-
-def extractJNI(Object... files) {
-    extractJNIFiles.inputFiles.addAll(files)
-}
-
-extractWorkerBeeHeaders.dependsOn(createFbjniDir)
-
-println "fbjniHeadersDir is set to: ${project.ext.fbjniHeadersDir}"
-println "CMake arguments: ${android.defaultConfig.externalNativeBuild.cmake.arguments}"
-
-// extractJNI("com.facebook.fbjni:fbjni:+")
-
-// def rnAAR = fileTree("${rootDir}/../node_modules/react-native/android").matching({ it.include "**/**/*.aar" }).singleFile
-// def jscAAR = fileTree("${rootDir}/../node_modules/jsc-android/dist/org/webkit/android-jsc").matching({ it.include "**/**/*.aar" }).singleFile
-
-// def inputFile = new File(rootDir, '../node_modules/react-native/package.json')
-// def json = new JsonSlurper().parseText(inputFile.text)
-// def reactNativeVersion = json.version as String
-// def (major, minor, patch) = reactNativeVersion.tokenize('.')
-// def raAAR = "${rootDir}/../node_modules/react-native-reanimated/android/react-native-reanimated-${minor}.aar"
-
-// extractJNI(files(rnAAR, jscAAR))
-
-tasks.whenTaskAdded { task ->
-    if (task.name.contains('externalNativeBuild')) {
-        task.dependsOn(extractWorkerBeeHeaders)
-    }
-}
-
-preBuild.dependsOn(extractWorkerBeeHeaders)
-
-// Task to clear CMake cache
-task clearCMakeCache {
-    doLast {
-        delete project.layout.buildDirectory.dir("intermediates/cmake").get().asFile
-        delete project.layout.buildDirectory.dir(".cxx").get().asFile
-    }
-}
-
-// Ensure CMake cache is cleared before each build
-tasks.matching { it.name.startsWith('configure') && it.name.contains('CMAKE') }.all {
-    it.dependsOn(clearCMakeCache)
-    it.dependsOn(extractWorkerBeeHeaders)
-}
-
-gradle.taskGraph.beforeTask { Task task ->
-    if (task.name.startsWith('configure') && task.name.contains('CMAKE')) {
-        clearCMakeCache.execute()
-        extractWorkerBeeHeaders.execute()
-    }
-}
-
-// Task to find React Native libraries
-task findReactNativeLibs {
-    doLast {
-        def aarFiles = fileTree(dir: "${rootProject.buildDir}", include: '**/react-native-*.aar')
-        aarFiles.each { aarFile ->
-            println "Found React Native AAR: ${aarFile.absolutePath}"
-        }
-
-        def jsiFiles = fileTree(dir: "${rootProject.buildDir}", include: '**/libjsi.so')
-        jsiFiles.each { jsiFile ->
-            println "Found libjsi.so: ${jsiFile.absolutePath}"
-        }
-    }
 }
 
 afterEvaluate {
-    // If you're having trouble with the build, uncomment this line to get more detailed output
-    // tasks.matching { it.name.startsWith('compile') && it.name.endsWith('Cmake') }.configureEach {
-    //     logging.captureStandardOutput LogLevel.INFO
-    // }
-}
-
-gradle.taskGraph.whenReady { taskGraph ->
-    android.defaultConfig.externalNativeBuild.cmake.arguments += 
-        "-DIS_CLEAN_BUILD=${taskGraph.hasTask(':clean')}"
+    tasks.matching { it.name.contains('externalNativeBuild') }.configureEach {
+        // mustRunAfter('clean')
+    }
 }
 
 configurations.all {
-    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-        if (details.requested.group == 'com.facebook.fbjni' && details.requested.name == 'fbjni') {
-            details.useVersion '0.3.0'
-        }
+    resolutionStrategy {
+        force "com.facebook.fbjni:fbjni:0.6.0"
     }
 }

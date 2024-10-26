@@ -16,7 +16,6 @@ find_package(fbjni REQUIRED CONFIG)
 
 # Define the library for workerbee JNI
 add_library(workerbee-jni SHARED
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jni/worker-jsi.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jni/WorkerBeeModule.cpp
 )
 
